@@ -1,0 +1,645 @@
+{% extends "base.html" %}
+{% block title %}Experiments{% endblock %}
+{% block content%}
+
+<script>
+
+  var nodes_status = {}
+
+  function toggle_start() {
+    if($("#radioStacked2").is(':checked'))
+      document.getElementById('check-minutes-container').style.display = 'flex';
+    else
+      document.getElementById('check-minutes-container').style.display = 'none';
+  }
+
+  function delete_single_node(id) {
+
+    var count = 1;
+    var arr = id.parentElement.textContent.split('×');
+    // console.log(id.parentElement.parentElement);
+    var li = id.parentElement.parentElement;
+
+    var num_brothers = li.childNodes.length - 5;
+
+    id.parentElement.remove();
+    // console.log('num_brothers', num_brothers);
+    if (num_brothers == 1) {
+      // while (li.firstChild) {
+      //   li.removeChild(li.lastChild);
+      // }
+      li.remove();
+    }
+
+    var counter = document.getElementById("counter2").innerHTML.split(' ')[0];
+    if (counter > 2) {
+      counter -= count;
+      document.getElementById("counter2").innerHTML = counter + ' nodes selected: ';
+      document.getElementById("counter").innerHTML = counter
+    }
+    else if (counter == 2) {
+      document.getElementById("counter2").innerHTML = '1 node selected: ';
+      document.getElementById("counter").innerHTML = 1
+    }
+    else {
+      clear_all();
+    }
+
+  }
+
+  function delete_nodes(id) {
+    id.parentElement.remove();
+    var counter = document.getElementById("counter2").innerHTML.split(' ')[0];
+
+    count = 0;
+    var arr = id.parentElement.textContent.split('×');
+    for (let i = 0; i < arr.length; i++) {
+      if (arr[i].includes('Node'))
+        count++;
+    }
+
+    if (counter > count + 1) {
+
+      counter -= count;
+
+      document.getElementById("counter2").innerHTML = counter + ' nodes selected: ';
+      document.getElementById("counter").innerHTML = counter
+    } else if (counter == count + 1) {
+      document.getElementById("counter2").innerHTML = '1 node selected: ';
+      document.getElementById("counter").innerHTML = 1
+    }
+    else {
+      clear_all();
+    }
+  }
+
+  function clear_all() {
+    var container = document.getElementById("ul-nodes");
+    // container.innerHTML = '';
+    while (container.firstChild) {
+      container.removeChild(container.lastChild);
+    }
+
+    document.getElementById("counter").innerHTML = 0
+    document.getElementById("counter2").innerHTML = '0 nodes selected: ';
+    document.querySelector('#card').style.display = 'none';
+  }
+
+  function submit_experiment() {
+
+    var formData = new FormData();
+
+    if (allowed_chars($('#name').val()))
+      formData.append('name', $('#name').val());
+    else {
+      set_toast('danger', 'Experiment name field cannot contain any special characters.');
+      return;
+    }
+
+    if (!isNaN(parseFloat($("#duration").val())) && isFinite($("#duration").val())) {
+      var minutes = Number($("#duration").val());
+
+      if ($("#btnradio2").is(':checked')) // hours
+        minutes = Number($("#duration").val()) * 60;
+
+      formData.append('submitted_duration', minutes);
+
+    }
+    else {
+      set_toast('danger', 'Duration field cannot contain any special characters.');
+      return;
+    }
+    if($("#radioStacked2").is(':checked')) {
+      if ($("#single-input").val() == '' || !$("#single-input").val().includes(':')) {
+        set_toast('danger', 'Start time field not valid.');
+        return;
+      }
+      var now = new Date();
+      var now_hrs = Number(now.getHours());
+      var now_mns = Number(now.getMinutes());
+      var sel_hrs = Number($("#single-input").val().split(':')[0]);
+      var sel_mns = Number($("#single-input").val().split(':')[1]);
+      console.log(sel_hrs, sel_mns)
+      if (60 * sel_hrs + sel_mns <= 60 * now_hrs + now_mns) {
+        set_toast('danger', 'Experiment start cannot go back in time.');
+        return;
+      }
+      formData.append('scheduled_date', $("#single-input").val());
+    }
+    else {  // as soon as possible clicked
+      formData.append('scheduled_date', 'as_soon_as_possible');
+    }
+
+    var container = document.getElementById("ul-nodes");
+    var childDivs = container.querySelectorAll('li');
+
+    var mapping = {};
+
+    for (var j = 0; j < childDivs.length; j++) {
+      let str = childDivs[j].textContent;
+      let res = str.match(/\/*Node \d+ ×/g);
+
+      var match = str.match(/×(\w*\s*)*/g);
+      var firmware = '';
+    
+      for (let i = 0; i < match.length; i++) {
+        if (match[i].includes('×') && match[i].includes('Select firmware ')) {
+          firmware = match[i].replace('×', '').replace('Select firmware ', '').trim();
+          break;
+        }
+      }
+      if (firmware === '') {
+        set_toast('danger', 'Set a firmware for all the nodes.');
+        // console.log('errore');
+        return;
+      }
+
+      var temp = [];
+      for (let i = 0; i < res.length; i++) {
+        temp.push(Number(res[i].split(' ')[1]));
+      }
+
+      mapping[j] = {
+        'nodes_list': temp,
+        'firmware': firmware
+      };
+    }
+    
+    if(Object.entries(mapping).length === 0) {
+      set_toast('danger', 'No nodes selected. Choose them and click the <i>Add to experiment</i> button.');
+      return;
+    }
+
+    formData.append('mapping', JSON.stringify(mapping));
+
+    $.ajax({
+      type: 'POST',
+      url: "{{url_for('experiments')}}",
+      data: formData,
+      processData: false,
+      contentType: false,
+
+      success: function (data, status, request) {
+        set_toast('success', 'Experiment correctly submitted.');
+      },
+      error: function (e) {
+        set_toast(e['responseJSON']['error']['type'], e['responseJSON']['error']['message']);
+      }
+    });
+
+  }
+
+
+  function add_nodes() {
+    var nodes = document.getElementById("nodes");
+
+    if (nodes.value === '')
+      return;
+
+    var r = nodes.value.replace(/-+/g, '-').replace(/\++/g, '+').split(/[+-]/);
+    nodes.value = nodes.value.replace(/-+/g, '-').replace(/\++/g, '+');
+    // console.log(nodes.value.replace(/-+/g, '-').replace(/\++/g, '+'));
+
+    for (let i = 0; i < r.length; i++) {
+      if (!isNaN(parseFloat(r[i])) && isFinite(r[i])) {
+        // console.log(r[i]);
+      }
+      else {
+        set_toast('danger', 'The expression of the nodes is not correct.');
+        // console.log('errore');
+        return;
+      }
+    }
+    // console.log(/^[0-9][\+|\-][0-9]/.test(nodes.value));
+    // console.log(/^([a-z0-9]{5,})$/.test(nodes.value));
+
+
+    if (!isNaN(parseFloat(nodes.value)) && isFinite(nodes.value)) {
+      // $("#error-div").html('');
+    }
+    else {
+
+      // div = $('<div class="alert alert-danger ms-5 me-5" role="alert"><h4 class="alert-danger">Error</h4>\
+      //         <p>Only digits allowed.</p><hr><p class="mb-0">Retry.</p></div>');
+      // nodes.value = '';
+      // $("#error-div").html(div);
+      // return;
+    }
+
+    temp_node_list = nodes.value.split('+');
+    var node_list = [];
+    for (let i = 0; i < temp_node_list.length; i++) {
+      var val = temp_node_list[i];
+      if (temp_node_list[i].indexOf('-') > -1) {
+        interval = temp_node_list[i].split('-');
+        if (interval.length == 2 && Number(interval[0]) < Number(interval[1])) {
+
+          var b = Number(interval[0]);
+          while (b <= Number(interval[1])) {
+            if (node_list.indexOf(b) == -1)
+              node_list.push(String(b));
+            b += 1;
+          }
+        }
+        else {
+          set_toast('danger', 'The expression of the nodes is not correct.');
+          console.log('Syntax error');
+          return;
+        }
+      }
+      else {
+        if (node_list.indexOf(val) == -1)
+          node_list.push(String(val));
+      }
+    }
+
+    var container = document.getElementById("ul-nodes");
+    var childDivs = container.querySelectorAll('li');
+
+    node_list2 = []
+    temp = [];
+    for (var j = 0; j < childDivs.length; j++) {
+      var arr = childDivs[j].innerText.replaceAll('Node ', '').split(' ×');
+      for (var r = 0; r < node_list.length; r++) {
+        temp.push(arr[r]);
+      }
+    }
+
+    for (r = 0; r < node_list.length; r++) {
+      if (!temp.includes(node_list[r])) {
+        node_list2.push(node_list[r]);
+      }
+    }
+
+    node_list = node_list2;
+    node_list2 = [];
+
+    var li = document.createElement('li');
+    for (let i = 0; i < node_list.length; i++) {
+
+      var bg = 'bg-info';
+      if (nodes_status['Alive'].includes(node_list[i]))
+        bg = 'bg-success';
+      else if (nodes_status['Dead'].includes(node_list[i]))
+        bg = 'bg-danger';
+      else if (nodes_status['Busy'].includes(node_list[i]))
+        bg = 'bg-warning';
+      else if (nodes_status['Suspected'].includes(node_list[i]))
+        bg = 'bg-dark';
+
+
+      li.innerHTML += '<span class="badge ' + bg + ' mt-1 me-1">\
+                    <span>Node ' + node_list[i] + ' </span><span class="tag-remove cursor" style="cursor: pointer;" onClick="delete_single_node(this)">×</span></span>';
+
+      if (i == node_list.length - 1) {
+        // var add_id = childDivs.length;
+        var add_id = String(Math.floor(Math.random() * 10000));
+
+        li.innerHTML += '<span data-bs-toggle="dropdown" class="ms-2 badge bg-light badge-tag cursor" style="cursor: pointer;" data-original-title="" title="Add firmware" aria-expanded="true"><i class="fa fa-microchip text-dark"></i></span>\
+                    <div id="li-' + add_id + '" class="dropdown-menu dropdown-menu-right"\
+                    style="position: absolute; transform: translate3d(+283px, +36px, 0px); top: 0px; left: 0px; will-change: transform;"\
+                    x-placement="top-end">\
+                      <div class="card-body">\
+                        <p class="lead">Select firmware <span class="text-muted">(upload or select from list)</span></p>\
+                        <form action="/firmware">\
+                          <button class="btn btn-outline-success ms-5 btn-sm" style="float: right;" type="submit" id="add-btn2">\
+                          <i class="fas fa-plus"></i>\
+                          Upload new firmware\
+                          </button>\
+                        </form>\
+                        <table class="table table-striped table-sm">\
+                          <thead>\
+                            <tr>\
+                              <th title="sort by identifier" class="cursor">Identifier</th>\
+                              <th title="sort by archi" class="cursor">Archi</th>\
+                              <th title="sort by archi" class="cursor">Last modified</th>\
+                              <th title="sort by description" class="cursor">Description</th>\
+                              </th>\
+                            </tr>\
+                          </thead>\
+                          <tbody id="tbody-firmware-' + add_id + '"><!----><!----><!----><!---->\
+                            <!----><!----><!----><!----><!----><!----><!---->\
+                          </tbody>\
+                        </table>\
+                      </div>\
+                    </div>\
+                    <a href="#" onClick="delete_nodes(this);" class="">\
+                    <span data-bs-toggle="tooltip" title="Delete nodes" class="badge bg-light badge-tag tag-remove cursor" data-original-title="" title="">\
+                    <i class="fa fa-trash-alt text-dark"></i></span></a>';
+
+      }
+      container.appendChild(li);
+
+      document.querySelector('#card').style.display = 'block';
+
+      var counter = Number(document.getElementById("counter2").innerHTML.split(' ')[0]) + 1;
+      if (counter > 1)
+        document.getElementById("counter2").innerHTML = counter + ' nodes selected: ';
+      else
+        document.getElementById("counter2").innerHTML = counter + ' node selected: ';
+
+      document.getElementById("counter2").innerHTML += '<a id="clear-all" onClick="clear_all();" href="#">clear all</a>';
+      document.getElementById("counter").innerHTML = counter;
+
+      get_firmwares(add_id);
+    }
+
+  }
+
+  $(function () {
+    $('#clear-all').click(clear_all);
+  });
+
+  $(function () {
+    $('#add-btn').click(add_nodes);
+  });
+
+  function add_firmware_to_nodes(key, ide) {
+    // console.log(key, 'key');
+    // console.log(ide, 'ide');
+    // console.log(id.parentElement.parentElement.parentElement.id, 'id');
+    var ident = ide.parentElement.parentElement.parentElement.id.split('-')[2];
+
+    $('[data-bs-toggle="dropdown"]').removeClass('open');
+    // console.log($('[data-bs-toggle="dropdown"]'));
+    // return;
+
+    var container = document.getElementById("ul-nodes");
+    var childDivs = container.querySelectorAll('li');
+
+    for (var j = 0; j < childDivs.length; j++) {
+      // console.log(childDivs[j].querySelectorAll('div')[0].id);
+      if (childDivs[j].querySelectorAll('div')[0].id.localeCompare('li-' + ident) == 0) {
+        // childDivs[j].querySelectorAll('span')[3].querySelector('i').innerHTML = ' ' + key;
+        const anchors = childDivs[j].querySelectorAll('span');
+        for (let i = 0; i < anchors.length; i++) {
+          if (anchors[i].title.localeCompare('Add firmware') == 0) {
+            childDivs[j].querySelectorAll('span')[i].querySelector('i').innerHTML = ' ' + key;
+          }
+        }
+      }
+    }
+  }
+
+  function get_firmwares(id) {
+
+    // var tbody = document.getElementById("tbody-firmware-" + id);
+    // send ajax request to start board environment
+    $.ajax({
+      type: 'GET',
+      url: "{{ url_for('firmwares') }}",
+
+      success: function (data, status, request) {
+        $("#tbody-firmware-" + id).html('');
+        for (var key in data['files']) {
+          var firmware = '<tr>\
+                          <td>\
+                            <a href="#" onClick="add_firmware_to_nodes(\'' + key + '\', this)";">' + key + '</a>\
+                            </td>\
+                            <td>' + data['files'][key]['archi'] + '</td>\
+                            <td>' + data['files'][key]['lastModified'] + '</td>\
+                            <td title="Basic tutorial" class="ellipsis">' + data['files'][key]['description'] + '</td>\
+                          </td>\
+                        </tr>';
+
+          // firmware += '<button type="button" class="list-group-item list-group-item-action>"' + key + '</button>';
+          $("#tbody-firmware-" + id).append(firmware);
+        }
+      },
+      error: function (e) {
+        $('#tbody-firmware-' + id).html('');
+        div = $('<div class="alert alert-warning" role="alert"><h4 class="alert-warning">' + e['responseJSON']['error']['error_type'] + '</h4>\
+        <p>' + e['responseJSON']['error']['error_main'] + '</p><hr><p class="mb-0">' + e['responseJSON']['error']['error_secondary'] + '</p></div>');
+
+        // $('#get-div2').html(div);
+        // alert(e);
+        console.log(e);
+
+        // $('#stop-btn').prop('disabled', false);
+      }
+    });
+  }
+
+  function update_nodes_ids() {
+    var content = 'No nodes available.';
+    $.ajax({
+      type: 'GET',
+      url: '/api/v1.0/nodes/ids',
+
+      success: function (data, status, request) {
+        // console.log(data);
+        content = ' ';
+        nodes_status = data['nodes'];
+
+        for (var key in data['nodes']) {
+
+          if (data['nodes'][key].length > 0) {
+            var bg = 'bg-dark';
+            if (key === 'Alive')
+              bg = 'bg-success';
+            else if (key === 'Busy')
+              bg = 'bg-warning';
+            else if (key === 'Dead')
+              bg = 'bg-danger';
+            else if (key === 'Suspected')
+              bg = 'bg-dark';
+            else
+              return;
+
+            // console.log(key);
+            content += '<span class="badge ' + bg + '">' + key + '</span><br>&emsp;\
+                          <span class="cursor data-ids">' + data['nodes'][key] + '</span><br>'
+          }
+        }
+
+        var nodes = $('#nodes');
+        nodes.attr('data-bs-content', content);
+      },
+      error: function (e) {
+        // $('#tbody-firmware-' + id).html('');
+        // div = $('<div class="alert alert-warning" role="alert"><h4 class="alert-warning">' + e['responseJSON']['error']['error_type'] + '</h4>\
+        // <p>' + e['responseJSON']['error']['error_main'] + '</p><hr><p class="mb-0">' + e['responseJSON']['error']['error_secondary'] + '</p></div>');
+        // console.log(e);
+
+        // $('#stop-btn').prop('disabled', false);
+      }
+    });
+
+    // rerun in 60 seconds
+    setTimeout(function () {
+      update_nodes_ids();
+    }, 60 * 1000);
+
+  }
+
+  window.onload = function set_node_ids() {
+    update_nodes_ids();
+    toggle_start();
+  }
+
+  $(function () {
+    $('#submit-btn').click(submit_experiment);
+  });
+
+  // set csrf_token
+  $.ajaxSetup({
+    beforeSend: function (xhr, settings) {
+      if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+        xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token() }}");
+      }
+    }
+  });
+
+</script>
+<div class="alert alert-primary mt-2 ms-3 me-3" role="alert">
+  <h4 class="alert-heading">Experiments</h4>
+  Use this panel to create a new Experiment
+</div>
+<div class="ms-3 me-3">
+  <div class="accordion" id="accordionExample">
+    <div class="accordion-item">
+      <h5 class="accordion-header" id="headingOne">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne"
+          aria-expanded="true" aria-controls="collapseOne">
+          <i class="fas fa-clock"></i>
+          &nbsp;Schedule
+        </button>
+      </h5>
+
+      <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne"
+        data-bs-parent="#accordionExample">
+        <div class="accordion-body">
+
+          <label for="name" class="me-5"><b>Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b></label>
+          <input type="input" name="name" id="name" placeholder="New experiment" required><br>
+          <label for="duration" class="me-5 mt-5"><b>Duration</b></label>
+          <input type="input" name="duration" class="me-3" id="duration" value=20 required>
+
+          <div class="btn-group" role="group" aria-label="Basic radio toggle button group">
+
+            <input type="radio" class="btn-check ms-4" name="btnradio" id="btnradio1" autocomplete="off" checked>
+            <label class="btn btn-outline-primary" for="btnradio1">Minutes</label>
+
+            <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
+            <label class="btn btn-outline-primary" for="btnradio2">Hours</label>
+          </div>
+          <br>
+          <div class="form-group">
+            <label for="name" class="me-5 mt-5"><b>Start&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b></label>
+            <label class="custom-control custom-control-inline custom-radio">
+              <input id="radioStacked1" name="radio-stacked" type="radio" value="asap" class="form-check-input" onClick="toggle_start()" checked>
+                <span class="custom-control-label">
+                  As soon as possible
+                </span>
+              </label>
+              <label class="custom-control custom-control-inline custom-radio me-0 ms-3">
+                <input id="radioStacked2" name="radio-stacked" type="radio" value="scheduled" class="form-check-input" onClick="toggle_start()">
+                <span class="custom-control-label">
+                  Scheduled
+                </span>
+              </label>
+            </div>
+          <div class="input-group ms-5 mt-3 w-25" id="check-minutes-container" style="display: none;">
+            <input class="form-control ms-5" id="single-input" type="input" value="" placeholder="Now">
+            <!-- <a tabindex="0" class="btn btn-sm btn-secondary mt-2 mb-3 ms-2" role="button" data-placement="right" data-toggle="popover" data-trigger="focus" title="Usage" data-content="Click the button to select only the minutes to start the experiment. To change the time select the input.">?</a> -->
+            <button id="check-minutes" class="btn btn-primary btn-md mt-0 ms-0">Check the minutes</button>
+            </div>
+          <div class="mt-3" id="error-div"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="accordion mt-2" id="accordionExample2">
+    <div class="accordion-item">
+      <h5 class="accordion-header" id="headingOne2">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne2"
+          aria-expanded="true" aria-controls="collapseOne2">
+          <i class="fas fa-project-diagram"></i>
+          &nbsp;Nodes
+          <span class="badge float-end badge-dark ms-5" id="counter" style="background-color:rgb(50, 93, 223);">0</span>
+        </button>
+      </h5>
+
+      <div id="collapseOne2" class="accordion-collapse collapse show" aria-labelledby="headingOne2"
+        data-bs-parent="#accordionExample2">
+        <div class="accordion-body">
+
+          <label for="nodes" class="me-5"><b>Nodes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b></label>
+          <input type="text" name="nodes" id="nodes" placeholder="Node IDs (e.g. 1-4+6)" data-bs-toggle="popover"
+            data-bs-placement="top" data-bs-title="Available nodes IDs" data-bs-html="true" data-bs-content=" " required>
+
+          <!-- <input id="nodes2" type="input" placeholder="Node IDs (e.g. 1-4+6)" data-toggle="popover" data-placement="bottom" 
+          data-title="Available node IDs" data-content="<span class=&quot;badge badge-success&quot;>Alive</span> \
+          <span class=&quot;cursor data-ids&quot;>2-11</span><br><span class=&quot;badge bg-secondary&quot;>\
+            Dead</span> <span class=&quot;cursor data-ids&quot;>1+12</span><br><span class=&quot;badge bg-dark&quot;>\
+              Suspected</span> <span class=&quot;cursor data-ids&quot;>17+19</span>" class="form-control form-control-sm me-2" 
+              data-original-title="" title=""> -->
+
+          <button class="btn btn-success ms-5 btn-md" type="button" id="add-btn">
+            <i class="fas fa-plus"></i>
+            Add to experiment
+          </button>
+
+          <div class=" mt-3" id="card-container">
+            <div id="error-div" class=""></div>
+            <div class="card-body" id="card" style="background-color: #e7f1ff; display: none;">
+              <p class="mb-0 font-size-1" id="counter2">0 nodes selected: <a id="clear-all" onClick="clear_all();"
+                  href="#">clear all</a></p>
+
+              <ul style="list-style: none;" id="ul-nodes">
+              </ul>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="btn btn-primary ms-5 me-3 mt-3 btn-md" type="button" id="submit-btn">Submit experiment</button>
+  <!-- <button class="btn btn-primary ms-5 me-3 mt-3 btn-md" type="button" id="stop-btn">Stop experiment</button> -->
+</div>
+
+
+<script type="text/javascript">
+  var input = $('#single-input').clockpicker({
+    placement: 'top',
+    align: 'left',
+    autoclose: true,
+    'default': 'now',
+
+    afterDone: function () {
+      var now = new Date();
+      var now_hrs = Number(now.getHours());
+      var now_mns = Number(now.getMinutes());
+
+      var sel_hrs = Number(input.val().split(':')[0]);
+      var sel_mns = Number(input.val().split(':')[1]);
+
+      if (60 * sel_hrs + sel_mns <= 60 * now_hrs + now_mns) {
+        set_toast('danger', 'Schedule the start of the experiment in the future.');
+        return;
+        div = $('<div class="alert alert-danger" role="alert"><h4 class="alert-danger">Error</h4>\
+                      <p>You can\'t go back in time.</p><hr><p class="mb-0">Try again.</p></div>');
+        // $('#error-div').html(div);
+        // $('#start-btn').prop('disabled', false);
+        // $('#stop-btn').prop('disabled', false);
+      }
+      else {
+        // $('#error-div').html('');
+        // $('#start-btn').prop('disabled', false);
+        // $('#stop-btn').prop('disabled', true);
+      }
+    }
+  });
+
+  // Manually toggle to the minutes view
+  $('#check-minutes').click(function (e) {
+    // Have to stop propagation here
+    e.stopPropagation();
+    input.clockpicker('show')
+      .clockpicker('toggleView', 'minutes');
+  });
+</script>
+
+{% endblock %}

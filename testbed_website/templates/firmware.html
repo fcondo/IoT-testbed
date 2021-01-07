@@ -1,0 +1,500 @@
+{% extends "base.html" %}
+{% block title %}Firmwares{% endblock %}
+{% block content%}
+
+<script>
+
+    function reset_divs() {
+        $('#error-div').html('');
+        $('#error-div2').html('');
+    }
+
+    function store_firmware() {
+        
+        var formData = new FormData($("#form-id")[0]);
+        var files = $('#file-submit')[0].files;
+
+        if (files.length > 0) {
+            formData.append('file-submit', files[0], files[0].name)
+            
+            if(allowed_chars($('#description').val()))
+                formData.append('description', $('#description').val());
+            else{
+                set_toast('danger', 'Description field cannot contain any special characters.');
+                return;
+            }
+
+            if(allowed_chars($("#identifier").val())) {
+                if($("#identifier").val().length > 0)
+                    formData.append('identifier', $("#identifier").val());
+                else
+                    set_toast('danger', 'Identifier field cannot be empty.');
+            }
+            else{
+                set_toast('danger', 'Identifier field cannot contain any special characters.');
+                return;
+            }
+     
+
+            if ($("#architecture option:selected").val() == 0)
+                formData.append('archi', '');
+            else
+                formData.append('archi', $("#architecture option:selected").text());
+
+            if ($("#identifier").val() == '') {
+                set_toast('danger', 'Identifier field cannot be empty.');
+                return;
+            }
+            
+        }
+        else
+            return;
+
+        $.ajax({
+            type: 'POST',
+            url: "{{url_for('firmwareschecker')}}",
+            data: formData,
+            processData: false,
+            contentType: false,
+
+            success: function (data, status, request) {
+                reset_divs();
+                // $('#error-div').html('');
+                $('#get-ul').html('');
+                update_firmwares();
+                set_toast('success', 'Firmware format is valid.');
+            },
+            error: function (e) {
+                // div = $('<div class="alert alert-danger mt-5 me-5" role="alert"><h4 class="alert-danger">' + e['responseJSON']['error']['error_type'] + '</h4>\
+                //         <p>' + e['responseJSON']['error']['error_main'] + '</p><hr><p class="mb-0">' +
+                //     e['responseJSON']['error']['error_secondary'] + '</p></div>');
+                reset_divs();
+                // $('#error-div').html(div);
+                // alert('Unexpected error');
+                // console.log(e);
+                set_toast(e['responseJSON']['error']['error_type'], e['responseJSON']['error']['error_main'] );
+            }
+        });
+
+
+        var already_present_files_array = document.getElementById("get-div2").innerText.split('\n');
+        var req_type = '';
+        var req_url = '';
+
+        console.log(files[0].name, already_present_files_array)
+
+        if (already_present_files_array.indexOf($("#identifier").val()) > -1) {
+            // file to be overwritten --> PUT
+            req_type = 'PUT';
+            req_url = '/api/v1.0/firmwares/' + $("#identifier").val();
+        }
+        else {
+            // first file uploading --> POST
+            req_type = 'POST';
+            req_url = "{{url_for('firmwares')}}"
+        }
+
+        $.ajax({
+            type: req_type,
+            url: req_url,
+            data: formData,
+            processData: false,
+            contentType: false,
+
+            success: function (data, status, request) {
+                div = $('<div class="alert alert-success mt-5 me-5" role="alert"><h4 class="alert-success">' + data['success']['task_type'] + '</h4>\
+                        <p>' + data['success']['success_main'] + '</p><hr><p class="mb-0">' +
+                    data['success']['success_secondary'] + '</p></div>');
+                reset_divs();
+                $('#error-div').html(div);
+                
+                if(req_type === 'POST')
+                    set_toast('success', 'Firmware <b>' + $("#identifier").val() + '</b> correctly stored in the server.');
+                else
+                    set_toast('success', 'Firmware <b>' + $("#identifier").val() + '</b> correctly updated.');
+
+                update_firmwares()
+            },
+            error: function (e) {
+                div = $('<div class="alert alert-danger mt-5 me-5" role="alert"><h4 class="alert-danger">' + e['responseJSON']['error']['error_type'] + '</h4>\
+                        <p>' + e['responseJSON']['error']['error_main'] + '</p><hr><p class="mb-0">' +
+                    e['responseJSON']['error']['error_secondary'] + '</p></div>');
+                reset_divs();
+                $('#error-div').html(div);
+                // alert('Unexpected error');
+                console.log(e);
+            }
+        });
+    }
+
+    function get_firmwares() {
+        // send ajax request to start board environment
+        $.ajax({
+            type: 'GET',
+            url: "{{ url_for('firmwares') }}",
+
+            success: function (data, status, request) {
+                // console.log(data);      
+
+                var files = '';
+                for (var key in data['files']) {
+                    // console.log(key, data['files'][key], data['files'][key]['size'], data['files'][key]['lastModified'])
+                    files += '<li class="ms-5 me-5 list-group-item list-group-item-secondary"><h5><b>' + key +
+                        '</b></h5>&nbsp;&nbsp;<i>size:</i> ' + data['files'][key]['size'] + ' <i>archi:</i> ' + data['files'][key]['archi'] +
+                        ' <i>last modified:</i> ' + data['files'][key]['lastModified'] + '</li>';
+                }
+                reset_divs();
+                $('#get-ul').html(files);
+                // console.log(data['files'].length);        
+            },
+            error: function (e) {
+                div = $('<div class="alert alert-warning mt-5 me-5" role="alert"><h4 class="alert-warning">' + e['responseJSON']['error']['error_type'] + '</h4>\
+                <p>' + e['responseJSON']['error']['error_main'] + '</p><hr><p class="mb-0">' + e['responseJSON']['error']['error_secondary'] + '</p></div>');
+                reset_divs();
+                $('#error-div').html(div);
+                // alert(e);
+                console.log(e);
+
+                // $('#stop-btn').prop('disabled', false);
+            }
+        });
+    }
+
+    function make_button_active() {
+
+        var btnContainer = document.getElementById("get-div2");
+
+        // Get all buttons with class="list-group-item" inside the container
+        var btns = btnContainer.getElementsByClassName("list-group-item");
+        // console.log(btns);
+        // Loop through the buttons and add the active class to the current/clicked button
+        for (var i = 0; i < btns.length; i++) {
+
+            btns[i].addEventListener("click", function () {
+                var current = document.getElementsByClassName("active");
+                current[0].className = current[0].className.replace(" active", "");
+                // console.log(current);
+                // console.log(this);
+                this.className += " active";
+            });
+        }
+
+    }
+
+    function update_firmwares() {
+
+        // send ajax request to start board environment
+        $.ajax({
+            type: 'GET',
+            url: "{{ url_for('firmwares') }}",
+
+            success: function (data, status, request) {
+
+                var files = '';
+                var first = true;
+                for (var key in data['files']) {
+                    var active_class = '"'
+                    if (first == true) {
+                        active_class = ' active"'
+                        first = false
+                    }
+                    files += '<button type="button" class="list-group-item list-group-item-action' + active_class + '>' + key + '</button>';
+                }
+
+                $('#get-div2').html(files);
+                // var btnContainer = document.getElementById("get-div2");
+                // var btns = btnContainer.getElementsByClassName("list-group-item");
+                // btns[0].className += " active";
+            },
+            error: function (e) {
+                div = $('<div class="alert alert-warning" role="alert"><h4 class="alert-warning">' + e['responseJSON']['error']['error_type'] + '</h4>\
+                <p>' + e['responseJSON']['error']['error_main'] + '</p><hr><p class="mb-0">' + e['responseJSON']['error']['error_secondary'] + '</p></div>');
+
+                $('#get-div2').html(div);
+                // alert(e);
+                console.log(e);
+
+                // $('#stop-btn').prop('disabled', false);
+            }
+        });
+    }
+
+    window.onload = function show_firmwares() {
+        update_firmwares();
+        make_button_active();
+    }
+
+    function get_info_firmware() {
+        var btnContainer = document.getElementById("get-div2");
+
+        // Get all buttons with class="list-group-item" inside the container
+        var btns = btnContainer.getElementsByClassName("list-group-item");
+
+        var selected_filename = '';
+        // Loop through the buttons and add the active class to the current/clicked button
+        for (var i = 0; i < btns.length; i++) {
+
+            if ((' ' + btns[i].className + ' ').indexOf(' ' + 'active' + ' ') > -1) {
+                selected_filename = btns[i].innerHTML;
+                console.log(selected_filename);
+                var format = /[ `!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]/;
+
+                console.log(format.test(selected_filename));
+
+                $.ajax({
+                    type: 'GET',
+                    url: '/api/v1.0/firmwares/' + selected_filename,
+                    success: function (data, status, request) {
+                        // console.log(data);
+
+                        var files = '';
+                        // for (var key in data['files']) {
+                        //     // console.log(key, data['files'][key], data['files'][key]['size'], data['files'][key]['lastModified'])
+                        //     files += '<li class="ms-5 me-5 list-group-item list-group-item-secondary"><h5><b>' + key +
+                        //         '</b></h5>&nbsp;&nbsp;<i>size:</i> ' + data['files'][key]['size'] + ' <i>archi:</i> ' + data['files'][key]['archi'] +
+                        //         ' <i>last modified:</i> ' + data['files'][key]['lastModified'] + '</li>';
+                        // }
+
+                        for (var key in data['files']) {
+
+                            files += '<li class="ms-5 me-5 list-group-item list-group-item-secondary"><h5><b>' + key +
+                                '</b></h5><hr>';
+                            for (var key2 in data['files'][key]) {
+                                if (key2 === 'size') {
+                                    if (Number(data['files'][key][key2]) >= Math.pow(10, 6)) {
+                                        console.log(Number(data['files'][key][key2]), Math.pow(10, 6));
+
+                                        data['files'][key][key2] /= Math.pow(10, 6)
+                                        data['files'][key][key2] += ' MB'
+                                    }
+                                    else if (Number(data['files'][key][key2]) >= Math.pow(10, 3)) {
+                                        data['files'][key][key2] /= Math.pow(10, 3)
+                                        data['files'][key][key2] += ' KB'
+                                    }
+                                    else {
+                                        data['files'][key][key2] += ' B'
+                                    }
+                                }
+
+                                files += '&nbsp;&nbsp; <strong>' + key2 + ':</strong> ' + data['files'][key][key2] + '<br>';
+                            }
+                            files += '</li>';
+                        }
+
+                        $('#get-ul2').html(files);
+                        // console.log(data['files'].length);        
+                    },
+                    error: function (e) {
+                        div = $('<div class="alert alert-warning mt-5 me-5 ms-5" role="alert"><h4 class="alert-warning">' + e['responseJSON']['error']['error_type'] + '</h4>\
+                        <p>' + e['responseJSON']['error']['error_main'] + '</p><hr><p class="mb-0">' + e['responseJSON']['error']['error_secondary'] + '</p></div>');
+                        reset_divs();
+                        $('#error-div').html(div);
+                        // alert(e);
+                        console.log(e);
+
+                        // $('#stop-btn').prop('disabled', false);
+                    }
+                });
+            }
+        }
+    }
+
+    function delete_firmware() {
+        var btnContainer = document.getElementById("get-div2");
+
+        // Get all buttons with class="list-group-item" inside the container
+        var btns = btnContainer.getElementsByClassName("list-group-item");
+
+        var selected_filename = '';
+        // Loop through the buttons and add the active class to the current/clicked button
+        for (var i = 0; i < btns.length; i++) {
+
+            if ((' ' + btns[i].className + ' ').indexOf(' ' + 'active' + ' ') > -1) {
+                selected_filename = btns[i].innerHTML;
+                console.log(selected_filename);
+
+                $.ajax({
+                    type: 'DELETE',
+                    url: '/api/v1.0/firmwares/' + selected_filename,
+                    success: function (data, status, request) {
+                        console.log(data);
+                        // div = $('<div class="alert alert-success ms-5 me-5" role="alert"><h4 class="alert-success">' + data['success']['task_type'] + '</h4>\
+                        //         <p>' + data['success']['success_main'] + '</p><hr><p class="mb-0">' +
+                        //     data['success']['success_secondary'] + '</p></div>');
+
+                        $('#get-ul2').html('');
+                        reset_divs();
+                        // $('#error-div2').html(div);
+                        $('#get-ul').html('');
+                        
+                        set_toast(data['success']['task_type'], data['success']['success_main']);
+
+                        update_firmwares();
+                    },
+                    error: function (e) {
+                        // div = $('<div class="alert alert-warning ms-5 me-5" role="alert"><h4 class="alert-warning">' + e['responseJSON']['error']['error_type'] + '</h4>\
+                        // <p>' + e['responseJSON']['error']['error_main'] + '</p><hr><p class="mb-0">' + e['responseJSON']['error']['error_secondary'] + '</p></div>');
+
+                        reset_divs();
+                        // $('#error-div').html(div);
+                        // alert(e);
+                        console.log(e);
+
+                        set_toast(e['responseJSON']['error']['error_type'],  e['responseJSON']['error']['error_main']);
+
+                        // $('#stop-btn').prop('disabled', false);
+                    }
+                });
+            }
+        }
+    }
+
+    $(function () {
+        $('#get-btn').click(get_firmwares);
+    });
+
+    $(function () {
+        $('#store-btn').click(store_firmware);
+    });
+
+    $(function () {
+        $('#get-div2').click(make_button_active);
+    });
+
+    $(function () {
+        $('#info-btn').click(get_info_firmware);
+    });
+
+    $(function () {
+        $('#delete-btn').click(delete_firmware);
+    });
+
+    // set csrf_token
+    $.ajaxSetup({
+        beforeSend: function (xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token() }}");
+            }
+        }
+    });
+
+</script>
+
+<div class="alert alert-primary mt-2 ms-3 me-3" role="alert">
+    <h4 class="alert-heading">Firmwares</h4>
+    Use this panel to upload a new file, to get information or to view the list of current available firmwares
+</div>
+
+<div class="ms-3 me-3">
+    <div class="accordion" id="accordionExample">
+        <div class="accordion-item">
+            <h5 class="accordion-header" id="headingOne">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne"
+                    aria-expanded="true" aria-controls="collapseOne">
+                    <i class="fas fa-microchip"></i>
+                    &nbsp;Add new firmware
+                </button>
+            </h5>
+
+            <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne"
+                data-bs-parent="#accordionExample">
+                <div class="accordion-body">
+                    <h5><i class="fa fa-pencil-alt"></i> New firmware</h5>
+                    <div class="ms-5 mt-2">
+                        <label for="form-id" class="me-5"><b>File&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b></label>
+                        <br>
+                        <div class="form-check form-check-inline">
+                            <form class="md-form form-inline" id="form-id" name="form-id" enctype="multipart/form-data">
+                                <div class="btn btn-outline-primary btn-sm">
+                                    <!-- <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/> -->
+                                    <input type="file" id="file-submit" name="file-submit" accept=".hex" required />
+                                </div>
+                            </form>
+                        </div>
+                        <br>
+                        <label for="identifier" class="me-5 mt-4"><b>Identifier</b></label>
+                        <br>
+                        <input type="input" name="identifier" class="me-3 ms-4 w-25" id="identifier"
+                            placeholder="Unique identifier name" required>
+                        <br>
+                        <label for="description" class="me-5 mt-4"><b>Description</b> <span
+                                class="text-muted">(Optional)</span></label>
+                        <br>
+                        <textarea name="description" id="description" class="form-control w-25 ms-4"
+                            placeholder="Description"></textarea>
+                        <br>
+                        <label for="architecture" class="me-5"><b>Architecture</b> <span
+                                class="text-muted">(Optional)</span></label>
+                        <br>
+                        <!-- <textarea class="form-control w-25 ms-4" aria-label="With textarea"></textarea> -->
+                        <select name="architecture" id="architecture" class="form-select ms-4 w-25"
+                            aria-label="Default select example">
+                            <option value="0" selected>Select architecture</option>
+                            <option value="1">nrf52840dk</option>
+                        </select>
+
+                        <input type=submit class="btn btn-outline-success ms-4 me-5 mt-3 btn-md" value="Store firmware"
+                            id="store-btn">
+                    </div>
+
+
+                    <br><br><br>
+                    <!-- <div class="mt-3" id="error-div"></div> -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="accordion mt-2" id="accordionExample2">
+        <div class="accordion-item">
+            <h5 class="accordion-header" id="headingOne2">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne2"
+                    aria-expanded="true" aria-controls="collapseOne2">
+                    <i class="fas fa-info"></i>
+                    &nbsp;Firmwares info
+                </button>
+            </h5>
+            <div id="collapseOne2" class="accordion-collapse collapse show" aria-labelledby="headingOne2"
+                data-bs-parent="#accordionExample2">
+                <div class="accordion-body">
+                    <h5><i class="fa fa-info-circle"></i> Firmware details</h5>
+
+                    <div class="mt-3">
+                        <div class="list-group ms-5" style="display:inline-block" id="get-div2"></div>
+                        <button class="btn btn-outline-secondary btn-md ms-5" id="info-btn">Get info</button>
+                        <button class="btn btn-outline-danger btn-md ms-5" id="delete-btn">Delete</button>
+                    </div>
+                    <div id="get-div2" class="mt-3 ms-5">
+                        <ul class="list-group" id="get-ul2" style="display:inline-block">
+                        </ul>
+                    </div>
+                    <div id="error-div2" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<br>
+<!-- 
+<div class="file-field ms-5 mt-1 inline">
+    <hr class="me-5">
+    <button class="btn btn-primary btn-lg" id="get-btn">Get all firmwares</button>
+    <div id="get-div" class="mt-3">
+        <ul class="list-group" id="get-ul" style="display:inline-block">
+        </ul>
+    </div>
+    <div id="error-div" class="mt-3"></div>
+</div>
+<div class="alert alert-primary mt-3 ms-3 me-3" role="alert">
+    <h4 class="alert-heading">Firmware</h4>
+    Use this panel to select a firmware to be deleted or get its information
+</div>
+
+<button class="btn btn-outline-secondary btn-md ms-5" id="get-btn">Get firmwares list</button>
+<div id="get-div" class="mt-3">
+    <ul class="list-group" id="get-ul" style="display:inline-block">
+    </ul>
+</div> -->
+
+
+{% endblock %}

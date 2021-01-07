@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content%}
+
+<script>
+
+    function toggle_selection() {
+        if ($('#tab-2').is(':checked')) {
+            $('#tab-1').prop('checked', true);
+            $('#tab-2').prop('checked', false);
+
+            $('#alert-div').remove();
+            console.log('{{show_signup}}')
+        }
+
+    }
+
+    function sign_up() {
+        
+        var formData = new FormData($("#sign-up-f")[0]);
+
+        $.ajax({
+            type: 'POST',
+            url: "{{url_for('auth.signup')}}",
+            data: formData,
+            processData: false,
+            contentType: false,
+
+            success: function (data, status, request) {
+                console.log(data);
+                location.href = "{{ url_for('site.profile') }}";
+            },
+            error: function (e) {
+                console.log(e);
+                set_toast(e['responseJSON']['error']['type'], e['responseJSON']['error']['message'] );
+            }
+        });
+    }
+
+    function log_in() {
+        
+        var formData = new FormData($("#log-in-f")[0]);
+        
+        $.ajax({
+            type: 'POST',
+            url: "{{url_for('auth.login')}}",
+            data: formData,
+            processData: false,
+            contentType: false,
+
+            success: function (data, status, request) {
+                location.href = "{{ url_for('site.profile') }}";
+            },
+            error: function (e) {
+                console.log(e);
+                set_toast(e['responseJSON']['error']['type'], e['responseJSON']['error']['message'] );
+            }
+        });
+    }
+
+    $(function () {
+        $('#signup-btn').click(sign_up);
+    });
+
+    $(function () {
+        $('#login-btn').click(log_in);
+    });
+
+    // set csrf_token
+    $.ajaxSetup({
+        beforeSend: function (xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token() }}");
+            }
+        }
+    });
+
+
+</script>
+
+<div class="row">
+    <div class="col-md-6 mx-auto p-0">
+        <div class="card" style="border: none;">
+            <div class="login-box">
+                <div class="login-snip"> <input id="tab-1" type="radio" name="tab" class="sign-in" checked><label
+                        for="tab-1" class="tab">Login</label> <input id="tab-2" type="radio" name="tab"
+                        class="sign-up"><label for="tab-2" class="tab">Sign Up</label>
+                    <div class="login-space">
+                        <div class="login">
+                            <form id="log-in-f">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                <div class="group"> <label for="pass" class="label">Email Address</label> <input
+                                        type="text" name="email" class="input" placeholder="Enter your email address">
+                                </div>
+                                <div class="group"> <label for="pass" class="label">Password</label> <input id="pass"
+                                        type="password" class="input" name="password" data-type="password"
+                                        placeholder="Enter your password"> </div>
+                                <div class="group"> <input id="check" name="remember" type="checkbox" class="check" checked> <label
+                                        for="check"><span class="icon"></span> Keep me Signed in</label> </div>
+                                <div class="group"> <input id="login-btn" style="text-align: center;" class="button" value="Sign In"> </div>
+                                <div class="hr"></div>
+                                <div class="foot"> <a href="#">Forgot Password?</a> </div>
+                            </form>
+                        </div>
+                        <div class="sign-up-form">
+                            <form id="sign-up-f">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                <div class="group"> <label for="user" class="label">Username</label> <input id="user-s"
+                                        type="text" name="name" class="input" placeholder="Create your Username"> </div>
+                                <div class="group"> <label for="pass" class="label">Password</label> <input id="pass-s"
+                                        type="password" name="password" class="input" data-type="password"
+                                        placeholder="Create your password"> </div>
+                                <div class="group"> <label for="pass" class="label">Repeat Password</label> <input
+                                        id="pass2-s" type="password" name="password2" class="input" data-type="password"
+                                        placeholder="Repeat your password"> </div>
+                                <div class="group"> <label for="pass" class="label">Email Address</label> <input
+                                        id="email-s" type="text" name="email" class="input" placeholder="Enter your email address">
+                                </div>
+                                <div class="group"> <input id="signup-btn" style="text-align: center;" class="button" value="Sign Up"> </div>
+                                <div class="hr"></div>
+                                <div class="foot"> <label for="tab-1">Already Member?</label> </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

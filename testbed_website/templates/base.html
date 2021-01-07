@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<!--[if lt IE 7 ]><html class="ie ie6" lang="en"> <![endif]-->
+<!--[if IE 7 ]><html class="ie ie7" lang="en"> <![endif]-->
+<!--[if IE 8 ]><html class="ie ie8" lang="en"> <![endif]-->
+<!--[if (gte IE 9)|!(IE)]><!-->
+<html lang="en">
+<!--<![endif]-->
+
+<head>
+  <!-- Basic Page Needs
+    ================================================== -->
+  <meta charset="utf-8">
+  <title>{% block title %}{% endblock %}</title>
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+
+
+  <meta name="author" content="">
+  <!-- Mobile Specific Metas
+    ================================================== -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="x-ua-compatible" content="IE=9">
+  <!-- CSS MyLayoutBuilder == -->
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+  <!-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous"> -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
+  <!-- <link rel="stylesheet" href="../static/assets/css/customindex.css"> -->
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
+  <link rel="stylesheet" type="text/css" href="../../api/static/assets/css/bootstrap-clockpicker.min.css">
+  <link rel="stylesheet" type="text/css" href="../static/assets/css/login.css">
+
+
+</head>
+
+<body>
+
+  <div id="page" class="page">
+    <div class="topbar" id="header-3">
+      <div class="header header4 po-relative">
+        <div class="h4-topbar gr-bg">
+          <div class="container-fluid">
+            <nav class="navbar mb-2 navbar-dark bg-dark navbar-toggler navbar-expand-lg h4-nav-bar">
+              <a class="navbar-brand" href="#">
+                <img src="../static/images/cherubino_pant541_77.gif" title="Unipi" alt="Unipi">
+              </a>
+              <!-- <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#h4-info" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </button> -->
+              <nav class="navbar navbar-expand-lg h4-nav">
+                <!-- <a class="hidden-lg-up">Navigation</a>
+                  <button class="navbar-toggler text-white" type="button" data-toggle="collapse" data-target="#header4" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </button>
+                  -->
+                <div class="collapse navbar-collapse" id="header4">
+                  <div class="hover-dropdown">
+                    <ul class="navbar-nav ">
+                      <li class="nav-item propClone">
+                        <a class="nav-link" href="{{ url_for('site.index') }}">Home</a>
+                      </li>
+                      <!-- <li class="nav-item propClone">
+                        <a class="nav-link" href="{{ url_for('api.console') }}">Console</a>
+                      </li> -->
+                      {% if not current_user.is_authenticated %}
+                      <li class="nav-item propClone">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">Login/Sign up</a>
+                      </li>
+                      {% endif %}
+                      {% if current_user.is_authenticated %}
+                      <li class="nav-item propClone">
+                        <a class="nav-link" href="{{ url_for('site.profile') }}">Profile</a>
+                      </li>
+                      <li class="nav-item propClone">
+                        <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+                      </li>
+                      <li class="nav-item propClone">
+                        <a class="nav-link" href="{{ url_for('site.my_experiments') }}">My experiments</a>
+                      </li>
+                      <li class="nav-item propClone">
+                        <a class="nav-link" href="{{ url_for('site.firmware') }}">Firmware</a>
+                      </li>
+                      <li class="nav-item propClone">
+                        <a class="nav-link" href="{{ url_for('site.experiments') }}">New experiment</a>
+                      </li>
+                      
+                      {% endif %}
+                      <!-- <li class="nav-item propClone">
+                        <a class="nav-link" href="{{ url_for('site.profile') }}">Profile</a>
+                      </li> -->
+                      <li class="nav-item propClone">
+                        <a class="nav-link" href="{{ url_for('site.testbed') }}">Testbed</a>
+                      </li>
+                      <!-- <li class="nav-item dropdown propClone">
+                          <a class="nav-link dropdown-toggle" href="{{ url_for('api.experiment') }}" id="h4-dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"> Experiment
+                            <i class="fa fa-angle-down m-l-5"></i>
+                          </a>
+                          <ul class="b-none dropdown-menu animated fadeInUp">
+                            <li class="propClone">
+                              <a class="dropdown-item" href="#">Lauch</a>
+                            </li>
+                            <li class="propClone">
+                              <a class="dropdown-item disabled" href="#" disabled>Stop</a>
+                            </li> --
+                          
+                          </ul>
+                        </li> -->
+                    </ul>
+                  </div>
+                  <!-- <ul class="navbar-nav ml-auto">
+                      <li class="nav-item search dropdown propClone">
+                        <a class="nav-link dropdown-toggle" href="javascript:void(0)" id="h4-sdropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                          <i class="fa fa-search"></i>
+                        </a>
+                        <div class="dropdown-menu b-none dropdown-menu-right animated fadeInDown" aria-labelledby="h4-sdropdown">
+                          <input class="form-control" type="text" placeholder="Type &amp; hit enter">
+                        </div>
+                      </li>
+                    </ul> -->
+                </div>
+              </nav>
+            </nav>
+          </div>
+        </div>
+      </div>
+      <!-- </div> -->
+      <!-- </div> -->
+
+
+
+      <!-- <script src="/assets/builder_aman/elements/assets/js/appear.min.js" type="text/javascript"></script>
+    <script src="/assets/builder_aman/elements/assets/js/animations.js" type="text/javascript"></script> -->
+
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+        crossorigin="anonymous"></script>
+      <!-- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script> -->
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW"
+        crossorigin="anonymous"></script>
+      <script src="../static/assets/js/custom.js"></script>
+      <!-- <script src="../../api/static/assets/js/jquery-clockpicker.min.js"></script> -->
+      <script src="../../api/static/assets/js/bootstrap-clockpicker.min.js"></script>
+
+      <script>
+        function set_toast(t, msg) {
+
+          if (msg == '')
+            return;
+
+          var type = '';
+          switch (t) {
+            case 'danger':
+              type = 'bg-danger';
+              break;
+            case 'success':
+              type = 'bg-success';
+              break;
+            default:
+              type = 'bg-danger';
+          }
+
+          var rand = String(Math.floor(Math.random() * 10000));
+
+          var div = '<div id="toast-' + rand + '" class="toast d-flex align-items-center text-white ' + type + ' border-0" role="alert" aria-live="assertive" aria-atomic="true">\
+                    <div class="toast-body">' + msg + '</div>\
+                    <button type="button" class="btn-close btn-close-white ms-auto me-2" data-bs-dismiss="toast" aria-label="Close"></button>\
+                   </div>';
+          $('#toast').append(div);
+          $('.toast').toast('show');
+
+          var myToastEl = document.getElementById('toast')
+          myToastEl.addEventListener('hidden.bs.toast', function () {
+            var inner_toasts = this.querySelectorAll('div');
+
+            for (var j = 0; j < inner_toasts.length; j++) {
+              if (inner_toasts[j].id === 'toast-' + String(rand)) {
+                inner_toasts[j].remove();
+                break;
+              }
+            }
+          })
+        }
+
+        $(document).ready(function () {
+          var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+          // document.querySelectorAll('[data-bs-toggle="popover"]').forEach(element => {
+          //   addEventListener('.popover-dismiss', function () {
+          //     trigger: 'focus'
+          //   });
+          // });
+          var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl)
+          })
+        });
+
+        $(document).ready(function () {
+          var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+          var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+          })
+        });
+
+
+        $('body').on('click', function (e) {
+          //did not click a popover toggle or popover
+          if ($(e.target).data('bsToggle') !== 'popover'
+            && $(e.target).parents('.popover.in').length === 0) {
+            $('[data-bs-toggle="popover"]').popover('hide');
+          }
+        });
+
+        function allowed_chars(str) {
+          var format = /[`!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]/;
+          return !format.test(str);
+        }
+
+
+
+
+
+      </script>
+
+      <div aria-live="polite" aria-atomic="true" class="sticky-top" style="z-index: 100;">
+        <div class="toast-container position-absolute top-0 end-0 p-3" id="toast">
+        </div>
+      </div>
+      {% block content%}{% endblock %}
+    </div>
+</body>
+
+</html>

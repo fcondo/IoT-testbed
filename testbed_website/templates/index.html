@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Homepage{% endblock %}
+{% block content%}
+
+<script>
+
+function start_boards() {
+        // send ajax request to start board environment
+        $.ajax({
+            url: "{{ url_for('api.start') }}",
+            
+            success: function(data, status, request) {
+                
+            },
+            error: function(e) {
+                alert('The CSRF session token is missing. Refresh the page to create a new random token.');
+                console.log(e);
+
+                // $('#start-btn').prop('disabled', false);
+            }
+        });
+    }
+    
+    function stop_boards() {
+        // send ajax request to start board environment
+        $.ajax({
+            url: "{{ url_for('api.stop') }}",
+            
+            success: function(data, status, request) {
+                
+            },
+            error: function(e) {
+                alert('The CSRF session token is missing. Refresh the page to create a new random token.');
+                console.log(e);
+
+                // $('#stop-btn').prop('disabled', false);
+            }
+        });
+    }
+    
+    $(function() {
+        $('#start-btn').click(start_boards);
+    });
+
+    $(function() {
+        $('#stop-btn').click(stop_boards);
+    });
+
+    // set csrf_token
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token() }}");
+            }
+        }
+    });
+
+
+</script>
+
+<div class="ml-3 mt-5">
+    <button class="btn btn-primary ml-2 mr-3 btn-lg" id="start-btn">Start</button>
+    <button class="btn btn-primary ml-2 mr-3 btn-lg" id="stop-btn">Stop</button>
+</div>
+
+{% endblock %}
